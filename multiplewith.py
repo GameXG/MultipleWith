@@ -5,10 +5,13 @@ import sys
 from collections import OrderedDict
 
 
+class ExitWithError(Exception):
+    pass
 
 class MultipleWith:
-    def __init__(self,*args,**kwargs):
-        u""" 可以接受的类型
+    def __init__(self, *args, **kwargs):
+        u"""
+        可以接受的参数格式：
 
         # 可以保证顺序，前面的处于外侧，后面的处于内测。
         with multiplewith(open('/path1','wb'),open('/path2','wb')) as file_list:
@@ -32,7 +35,7 @@ class MultipleWith:
             file_dict['file1'].write(file_dict.file2.read())
         """
         if args and not kwargs:
-            if isinstance(args[0],(list,tuple)):
+            if isinstance(args[0], (list, tuple)):
                 kwargs = OrderedDict(args)
                 args = None
             else:
@@ -41,7 +44,7 @@ class MultipleWith:
                     self._contexts.append(c)
                 return
         if not args and kwargs:
-            if isinstance(kwargs,OrderedDict):
+            if isinstance(kwargs, OrderedDict):
                 self._contexts = kwargs
             else:
                 self._contexts = OrderedDict(kwargs)
@@ -51,9 +54,9 @@ class MultipleWith:
     def __enter__(self):
         u""" 进入 with 块 """
         self.__exit_list = []
-        exc_type, exc_val, exc_tb = None,None,None
+        exc_type, exc_val, exc_tb = None, None, None
 
-        if isinstance(self._contexts,(list,tuple)):
+        if isinstance(self._contexts, (list, tuple)):
             # list 类型
             res = []
             for c in self._contexts:
@@ -62,37 +65,36 @@ class MultipleWith:
                 except:
                     # 如果出现异常，那么反向调用 __exit__
                     exc_type, exc_value, exc_traceback = sys.exc_info()
-                    self.__exit(exc_type, exc_value, exc_traceback,True)
-                    #TODO: 正常 with嵌套这里应该是直接退出 with 块，并且异常被捕获并抛弃了。
-                    #TODO: 但是目前没有想到什么办法可以不引发异常退出 with 块。
-                    raise Exception()
+                    self.__exit(exc_type, exc_value, exc_traceback, True)
+                    # TODO: 正常 with嵌套这里应该是直接退出 with 块，并且异常被捕获并抛弃了。
+                    # TODO: 但是目前没有想到什么办法可以不引发异常退出 with 块。
+                    raise ExitWithError()
 
                 self.__exit_list.append(c)
                 res.append(t)
             return res
 
-        elif isinstance(self._contexts,(dict,OrderedDict)):
+        elif isinstance(self._contexts, (dict, OrderedDict)):
             # dict
             res = {}
-            for k,v in self._contexts.iteritems():
+            for k, v in self._contexts.items():
                 try:
                     t = v.__enter__()
                 except:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
-                    self.__exit(exc_type, exc_value, exc_traceback,True)
-                    #TODO: 正常 with嵌套这里应该是直接退出 with 块，并且异常被捕获并抛弃了。
-                    #TODO: 但是目前没有想到什么办法可以不引发异常退出 with 块。
-                    raise Exception()
+                    self.__exit(exc_type, exc_value, exc_traceback, True)
+                    # TODO: 正常 with嵌套这里应该是直接退出 with 块，并且异常被捕获并抛弃了。
+                    # TODO: 但是目前没有想到什么办法可以不引发异常退出 with 块。
+                    raise ExitWithError()
 
                 self.__exit_list.append(v)
-                res[k]=t
+                res[k] = t
             return res
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        return self.__exit(exc_type, exc_val, exc_tb,False)
+        return self.__exit(exc_type, exc_val, exc_tb, False)
 
-
-    def __exit(self, exc_type, exc_val, exc_tb,is_raise):
+    def __exit(self, exc_type, exc_val, exc_tb, is_raise):
         u""" 反向 exit
 
     is_raise 是否抛出异常(如果是 __exit__ 引发的异常，会强制抛出)
@@ -111,7 +113,7 @@ class MultipleWith:
 
                 exc_type, exc_val, exc_tb = _exc_type, _exc_val, _exc_traceback
             if res:
-                exc_type, exc_val, exc_tb = None,None,None
+                exc_type, exc_val, exc_tb = None, None, None
 
         if exc_val:
             if is_raise:
@@ -120,4 +122,3 @@ class MultipleWith:
                 return False
         else:
             return True
-
